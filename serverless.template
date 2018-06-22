@@ -1,0 +1,166 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Transform": "AWS::Serverless-2016-10-31",
+    "Description": "An AWS Serverless Application.",
+    "Resources": {
+        "SignDocumentRequest": {
+            "Type": "AWS::Serverless::Function",
+            "Properties": {
+                "Handler": "AWSLambda1::AWSLambda1.Function::SignDocumentRequestFunctionHandler",
+                "Runtime": "dotnetcore2.0",
+                "CodeUri": "",
+                "MemorySize": 256,
+                "Timeout": 30,
+                "Role": {
+                    "Fn::GetAtt": [
+                        "LambdaRole",
+                        "Arn"
+                    ]
+                },
+                "Policies": [
+                    "AWSLambdaBasicExecutionRole"
+                ],
+				"Environment": {
+					"Variables" : {
+						"bucket_name": "suturesign-amazon-awspoc",
+						"topic_arn": "arn:aws:sns:us-east-1:528506620206:DocumentRequiringSignature",
+						"state_machine_arn": "arn:aws:states:us-east-1:528506620206:stateMachine:OnFileUploaded"
+					}
+				},
+                "Events": {
+                    "PutResource": {
+                        "Type": "Api",
+                        "Properties": {
+                            "Path": "/documents/sign",
+                            "Method": "PUT"
+                        }
+                    },
+					"PostResource": {
+						"Type": "Api",
+                        "Properties": {
+                            "Path": "/documents/sign",
+                            "Method": "POST"
+                        }
+					}
+                },
+                "VpcConfig": {
+                    "SubnetIds": [
+						"subnet-0ab644dfcaf495c7c"
+                    ],
+                    "SecurityGroupIds": [
+						"sg-00d9a04c3034041fc"
+                    ]
+                }
+            }
+        },
+        "DocumentSignedNotification": {
+            "Type": "AWS::Serverless::Function",
+            "Properties": {
+                "Handler": "AWSLambda1::AWSLambda1.Function::SignedDocumentNotificationFunctionHandler",
+                "Runtime": "dotnetcore2.0",
+                "CodeUri": "",
+                "MemorySize": 256,
+                "Timeout": 30,
+                "Role": {
+                    "Fn::GetAtt": [
+                        "LambdaRole",
+                        "Arn"
+                    ]
+                },
+                "Policies": [
+                    "AWSLambdaBasicExecutionRole"
+                ],
+                "Events": {},
+                "VpcConfig": {
+                    "SubnetIds": [
+						"subnet-0ab644dfcaf495c7c"
+                    ],
+                    "SecurityGroupIds": [
+						"sg-00d9a04c3034041fc"
+                    ]
+                }
+            }
+        },
+        "LambdaRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "lambda.amazonaws.com"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "ManagedPolicyArns": [
+                    "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+                ],
+                "Policies": [
+                    {
+                        "PolicyName": "network-lambda-role-policy",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "ec2:DescribeInstances",
+                                        "ec2:CreateNetworkInterface",
+                                        "ec2:AttachNetworkInterface",
+                                        "ec2:DescribeNetworkInterfaces",
+                                        "ec2:DeleteNetworkInterface",
+                                        "xray:PutTraceSegments",
+                                        "xray:PutTelemetryRecords",
+                                        "logs:CreateLogGroup",
+                                        "logs:CreateLogStream",
+                                        "logs:PutLogEvents",
+                                        "s3:*",
+                                        "sns:*"
+                                    ],
+                                    "Resource": "*"
+                                },
+                                {
+                                    "Effect": "Allow",
+                                    "Action": [
+                                        "sqs:DeleteMessage",
+                                        "sqs:ChangeMessageVisibility",
+                                        "sqs:ReceiveMessage",
+                                        "sqs:SendMessage",
+                                        "sqs:GetQueueAttributes"
+                                    ],
+                                    "Resource": "arn:aws:sqs:*:528506620206:*"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+		"SignedNotificationTopic": {
+			"Type" : "AWS::SNS::Topic",
+			"Properties" : {
+				"DisplayName" : "Document Signed Notification Topic",
+				"TopicName" : "DocumentRequiringSignature",
+                "Subscription" : [
+					
+				]
+			}
+		}
+    },
+    "Outputs": {
+        "ApiURL": {
+            "Description": "API endpoint URL for POC environment",
+            "Value": {
+                "Fn::Sub": "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/POC/"
+            }
+        }
+    }
+}
